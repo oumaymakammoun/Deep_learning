@@ -1,0 +1,92 @@
+# =============================================================================
+# I-JEPA Configuration File
+# Image Joint Embedding Predictive Architecture (Meta AI)
+# =============================================================================
+# This configuration follows the paper's recommendations adapted for
+# smaller-scale experiments (STL-10 / CIFAR-10 instead of ImageNet).
+# =============================================================================
+
+# --- Seed for reproducibility ---
+seed: 42
+
+# --- Dataset Configuration ---
+data:
+  dataset: "stl10"            # "stl10" (preferred) or "cifar10" (fallback)
+  data_dir: "./datasets"      # Where to download/store data
+  image_size: 96              # STL-10 native resolution (CIFAR-10 will be resized)
+  num_workers: 4              # DataLoader workers
+  pin_memory: true            # Pin memory for faster GPU transfer
+
+# --- Vision Transformer (ViT) Encoder ---
+encoder:
+  image_size: 96              # Input image resolution
+  patch_size: 8               # Patch size (96/8 = 12x12 = 144 patches)
+  in_channels: 3              # RGB input
+  embed_dim: 384              # Embedding dimension (ViT-Small)
+  depth: 6                    # Number of transformer blocks
+  num_heads: 6                # Number of attention heads (384/6 = 64 dim/head)
+  mlp_ratio: 4.0              # MLP hidden dim = embed_dim * mlp_ratio
+  dropout: 0.0                # Dropout rate (0 for self-supervised pretraining)
+
+# --- Predictor Network ---
+# The predictor is a NARROW transformer that maps context embeddings
+# to predicted target embeddings. It is narrower than the encoder to
+# prevent the model from learning trivial identity mappings.
+predictor:
+  embed_dim: 384              # Must match encoder embed_dim (input/output dim)
+  predictor_embed_dim: 192    # Internal predictor dimension (narrower!)
+  depth: 3                    # Fewer layers than encoder
+  num_heads: 6                # Attention heads
+  mlp_ratio: 4.0              # MLP expansion ratio
+
+# --- Masking Strategy ---
+# I-JEPA uses multi-block masking:
+# - Multiple small TARGET blocks are masked (what we predict)
+# - A larger CONTEXT block remains visible (what the encoder sees)
+# This differs from MAE which masks random individual patches.
+masking:
+  num_targets: 4              # Number of target blocks to predict
+  target_scale_min: 0.15      # Min fraction of image for each target block
+  target_scale_max: 0.2       # Max fraction of image for each target block
+  target_aspect_ratio_min: 0.75  # Min aspect ratio of target blocks
+  target_aspect_ratio_max: 1.5   # Max aspect ratio of target blocks
+  context_scale_min: 0.85     # Min fraction of patches to keep as context
+  context_scale_max: 1.0      # Max fraction of patches to keep as context
+
+# --- EMA (Exponential Moving Average) Target Encoder ---
+# The target encoder is NOT trained with gradients. Instead, it is a
+# momentum-updated copy of the context encoder. This is a key design
+# choice from BYOL/DINO/I-JEPA that prevents representation collapse.
+ema:
+  momentum_base: 0.996        # Base EMA momentum
+  momentum_final: 1.0         # Final EMA momentum (cosine schedule)
+
+# --- Training Configuration ---
+training:
+  epochs: 100                 # Total training epochs
+  batch_size: 256             # Batch size (reduce if OOM)
+  lr: 1.5e-4                  # Peak learning rate
+  weight_decay: 0.05          # AdamW weight decay
+  warmup_epochs: 10           # Linear warmup epochs
+  min_lr: 1.0e-6              # Minimum learning rate (cosine decay)
+  use_amp: true               # Mixed precision training (AMP)
+  grad_clip: 1.0              # Gradient clipping max norm
+  log_interval: 50            # Log every N steps
+  save_interval: 10           # Save checkpoint every N epochs
+  checkpoint_dir: "./checkpoints"  # Where to save model checkpoints
+
+# --- Linear Probing Evaluation ---
+eval:
+  epochs: 100                 # Linear probe training epochs
+  batch_size: 256             # Evaluation batch size
+  lr: 0.1                     # SGD learning rate for linear probe
+  momentum: 0.9               # SGD momentum
+  weight_decay: 0.0           # No weight decay for linear probe
+  num_classes: 10             # STL-10 / CIFAR-10 classes
+
+# --- Visualization ---
+visualization:
+  output_dir: "./figures"     # Where to save plots
+  tsne_perplexity: 30         # t-SNE perplexity parameter
+  tsne_n_samples: 2000        # Number of samples for t-SNE
+  attention_n_images: 8       # Number of images for attention maps
