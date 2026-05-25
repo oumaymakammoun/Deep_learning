@@ -11,20 +11,20 @@ seed: 42
 
 # --- Dataset Configuration ---
 data:
-  dataset: "stl10"            # "stl10" (preferred) or "cifar10" (fallback)
+  dataset: "cifar10"          # "cifar10" pour CPU (plus léger que STL-10)
   data_dir: "./datasets"      # Where to download/store data
-  image_size: 96              # STL-10 native resolution (CIFAR-10 will be resized)
-  num_workers: 4              # DataLoader workers
-  pin_memory: true            # Pin memory for faster GPU transfer
+  image_size: 32              # CIFAR-10 native resolution
+  num_workers: 0              # 0 pour Windows (évite les erreurs multiprocessing)
+  pin_memory: false            # false sans GPU CUDA
 
 # --- Vision Transformer (ViT) Encoder ---
 encoder:
-  image_size: 96              # Input image resolution
-  patch_size: 8               # Patch size (96/8 = 12x12 = 144 patches)
+  image_size: 32              # CIFAR-10 native resolution
+  patch_size: 4               # Patch size (32/4 = 8x8 = 64 patches)
   in_channels: 3              # RGB input
-  embed_dim: 384              # Embedding dimension (ViT-Small)
-  depth: 6                    # Number of transformer blocks
-  num_heads: 6                # Number of attention heads (384/6 = 64 dim/head)
+  embed_dim: 192              # Embedding dimension (réduit pour CPU)
+  depth: 4                    # Number of transformer blocks
+  num_heads: 6                # Number of attention heads (192/6 = 32 dim/head)
   mlp_ratio: 4.0              # MLP hidden dim = embed_dim * mlp_ratio
   dropout: 0.0                # Dropout rate (0 for self-supervised pretraining)
 
@@ -33,9 +33,9 @@ encoder:
 # to predicted target embeddings. It is narrower than the encoder to
 # prevent the model from learning trivial identity mappings.
 predictor:
-  embed_dim: 384              # Must match encoder embed_dim (input/output dim)
-  predictor_embed_dim: 192    # Internal predictor dimension (narrower!)
-  depth: 3                    # Fewer layers than encoder
+  embed_dim: 192              # Must match encoder embed_dim (input/output dim)
+  predictor_embed_dim: 96     # Internal predictor dimension (narrower!)
+  depth: 2                    # Fewer layers than encoder
   num_heads: 6                # Attention heads
   mlp_ratio: 4.0              # MLP expansion ratio
 
@@ -63,26 +63,26 @@ ema:
 
 # --- Training Configuration ---
 training:
-  epochs: 100                 # Total training epochs
-  batch_size: 256             # Batch size (reduce if OOM)
+  epochs: 5                  # Réduit pour CPU
+  batch_size: 64              # Batch size réduit pour CPU
   lr: 1.5e-4                  # Peak learning rate
   weight_decay: 0.05          # AdamW weight decay
-  warmup_epochs: 10           # Linear warmup epochs
+  warmup_epochs: 2            # Linear warmup epochs
   min_lr: 1.0e-6              # Minimum learning rate (cosine decay)
-  use_amp: true               # Mixed precision training (AMP)
+  use_amp: false              # false sans GPU CUDA
   grad_clip: 1.0              # Gradient clipping max norm
   log_interval: 50            # Log every N steps
-  save_interval: 10           # Save checkpoint every N epochs
+  save_interval: 5            # Save checkpoint every N epochs
   checkpoint_dir: "./checkpoints"  # Where to save model checkpoints
 
 # --- Linear Probing Evaluation ---
 eval:
-  epochs: 100                 # Linear probe training epochs
-  batch_size: 256             # Evaluation batch size
+  epochs: 20                  # Linear probe training epochs
+  batch_size: 64              # Evaluation batch size
   lr: 0.1                     # SGD learning rate for linear probe
   momentum: 0.9               # SGD momentum
   weight_decay: 0.0           # No weight decay for linear probe
-  num_classes: 10             # STL-10 / CIFAR-10 classes
+  num_classes: 10             # CIFAR-10 classes
 
 # --- Visualization ---
 visualization:

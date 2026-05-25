@@ -30,7 +30,7 @@ import yaml
 import numpy as np
 import torch
 import torch.nn as nn
-from torch.cuda.amp import GradScaler, autocast
+from torch.amp import GradScaler, autocast
 
 from model.encoder import VisionTransformerEncoder
 from model.predictor import Predictor

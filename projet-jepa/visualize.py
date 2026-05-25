@@ -301,7 +301,10 @@ def main() -> None:
 
     # Load checkpoint
     ckpt_dir = config['training']['checkpoint_dir']
-    ckpt_files = sorted([f for f in os.listdir(ckpt_dir) if f.endswith('.pt')])
+    if os.path.exists(ckpt_dir):
+        ckpt_files = sorted([f for f in os.listdir(ckpt_dir) if f.endswith('.pt')])
+    else:
+        ckpt_files = []
     if ckpt_files:
         ckpt_path = os.path.join(ckpt_dir, ckpt_files[-1])
         print(f"[INIT] Loading checkpoint: {ckpt_path}")
